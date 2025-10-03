@@ -19,6 +19,24 @@ import inquiryRoutes from './routes/inquiries.js';
 // Load environment variables
 dotenv.config();
 
+const validateRequiredEnvVars = () => {
+  const requiredVars = ['MONGODB_URI', 'JWT_SECRET'];
+  const missing = requiredVars.filter((name) => !process.env[name]);
+
+  if (missing.length) {
+    console.error(`🚨 Missing required environment variables: ${missing.join(', ')}`);
+    console.error('Set them in your hosting dashboard or local .env file before starting the server.');
+    process.exit(1);
+  }
+
+  if (!process.env.JWT_EXPIRES_IN) {
+    console.warn('⚠️  JWT_EXPIRES_IN not set. Falling back to default of 24h.');
+    process.env.JWT_EXPIRES_IN = '24h';
+  }
+};
+
+validateRequiredEnvVars();
+
 // Connect to MongoDB
 connectDB();
 

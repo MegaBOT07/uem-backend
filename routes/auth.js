@@ -6,6 +6,20 @@ import { User } from '../models/index.js';
 
 const router = express.Router();
 
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+
+const ensureJwtConfigured = (res) => {
+  if (!JWT_SECRET) {
+    console.error('Authentication error: JWT_SECRET environment variable is not configured.');
+    if (res) {
+      res.status(500).json({ error: 'Authentication service unavailable. Please contact the administrator.' });
+    }
+    return false;
+  }
+  return true;
+};
+
 // Middleware to verify JWT token
 export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -15,7 +29,11 @@ export const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+  if (!ensureJwtConfigured(res)) {
+    return;
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
@@ -30,6 +48,10 @@ router.post('/login', [
   body('password').isLength({ min: 6 })
 ], async (req, res) => {
   try {
+    if (!ensureJwtConfigured(res)) {
+      return;
+    }
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -56,8 +78,8 @@ router.post('/login', [
     // Generate JWT token
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
     );
 
     res.json({
@@ -87,6 +109,10 @@ router.post('/register', [
   body('role').optional().isIn(['admin', 'driver', 'dispatcher'])
 ], async (req, res) => {
   try {
+    if (!ensureJwtConfigured(res)) {
+      return;
+    }
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -122,8 +148,8 @@ router.post('/register', [
     // Generate JWT token
     const token = jwt.sign(
       { id: newUser._id, email: newUser.email, role: newUser.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
     );
 
     res.status(201).json({
